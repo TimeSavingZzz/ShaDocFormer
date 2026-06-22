@@ -1,0 +1,29 @@
+# 数据集（太大，不纳入 git）
+dataset/
+
+# 实验结果和模型权重
+experiment_results/
+experiment_results_rdd/
+result/
+checkpoints/
+*.pth
+*.pkl
+*.pt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,31 @@
+# ShaDocFormer + TextAware + Comparison Models
+# 实验环境依赖 (RTX 2080 Ti 22GB / CUDA 11.8 / Python 3.10)
+# 安装: pip install -r requirements.txt
+
+# Core (CUDA 11.8)
+torch==2.0.1+cu118
+torchvision==0.15.2+cu118
+torchmetrics==1.9.0
+numpy==1.26.4
+scipy==1.15.3
+scikit-image==0.25.2
+
+# Data & Augmentation
+albumentations==2.0.8
+opencv-python-headless==4.13.0.92
+pillow==12.2.0
+
+# Model dependencies
+timm==1.0.27
+einops==0.8.2
+pytorch-msssim==1.0.0
+
+# Text detection (for TextAware model)
+easyocr==1.7.2
+
+# Training utilities
+accelerate==0.17.1
+tqdm==4.65.2
+
+# Visualization (for paper figures)
+matplotlib==3.10.9
