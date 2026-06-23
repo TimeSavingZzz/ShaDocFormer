@@ -459,7 +459,7 @@ def main():
     # Per-model settings: resolution override, batch_size override, text_detector
     MODEL_RES = {'docdeshadower': 384, 'shadow_guided_restormer': 256,
                  'shadow_guided_restormer_no_sgca': 256, 'shadow_guided_restormer_concat': 256,
-                 'shadow_guided_restormer_crossattn': 384,
+                 'shadow_guided_restormer_crossattn.: 192,
                  'shadow_guided_restormer_film': 384,
                  'shadow_guided_restormer_large': 320}
     MODEL_BS = {'nafnet': 8, 'unet': 8, 'docdeshadower': 1, 'bedsr': 4, 'restormer': 2,
