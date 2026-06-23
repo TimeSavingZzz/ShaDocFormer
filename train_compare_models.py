@@ -21,8 +21,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from models import Model as ShaDocFormer
 from models.text_aware_model import TextAwareModel, TextDetector, TextAwareLoss
-from models.comparison_models import BEDSRGenerator, UNet, NAFNet, Restormer, ShadowGuidedNAFNet, ShadowGuidedNAFNet_NoSGCA, ShadowGuidedNAFNet_Concat, ShadowGuidedRestormer, ShadowGuidedRestormer_NoSGCA, ShadowGuidedRestormer_Concat,
-    ShadowGuidedRestormer_CrossAttn, ShadowGuidedRestormer_FiLM, ShadowGuidedRestormer_Large
+from models.comparison_models import (BEDSRGenerator, UNet, NAFNet, Restormer, ShadowGuidedNAFNet, ShadowGuidedNAFNet_NoSGCA, ShadowGuidedNAFNet_Concat, ShadowGuidedRestormer, ShadowGuidedRestormer_NoSGCA, ShadowGuidedRestormer_Concat,
+    ShadowGuidedRestormer_CrossAttn, ShadowGuidedRestormer_FiLM, ShadowGuidedRestormer_Large)
 from config.config import Config
 from data.data_RGB import get_data
 from utils import seed_everything
