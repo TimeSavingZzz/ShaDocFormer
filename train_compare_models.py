@@ -21,7 +21,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from models import Model as ShaDocFormer
 from models.text_aware_model import TextAwareModel, TextDetector, TextAwareLoss
-from models.comparison_models import BEDSRGenerator, UNet, NAFNet, Restormer, ShadowGuidedNAFNet, ShadowGuidedNAFNet_NoSGCA, ShadowGuidedNAFNet_Concat, ShadowGuidedRestormer, ShadowGuidedRestormer_NoSGCA, ShadowGuidedRestormer_Concat
+from models.comparison_models import BEDSRGenerator, UNet, NAFNet, Restormer, ShadowGuidedNAFNet, ShadowGuidedNAFNet_NoSGCA, ShadowGuidedNAFNet_Concat, ShadowGuidedRestormer, ShadowGuidedRestormer_NoSGCA, ShadowGuidedRestormer_Concat,
+    ShadowGuidedRestormer_CrossAttn, ShadowGuidedRestormer_FiLM, ShadowGuidedRestormer_Large
 from config.config import Config
 from data.data_RGB import get_data
 from utils import seed_everything
@@ -37,8 +38,8 @@ DATASET_CONFIGS = {
         'target': 'back_gt',
     },
     'sd7k': {
-        'train_dir': './dataset/SD7K/lkljty___ShadowDocument7K/train/',
-        'val_dir': './dataset/SD7K/lkljty___ShadowDocument7K/test/',
+        'train_dir': './dataset/SD7K/train/',
+        'val_dir': './dataset/SD7K/test/',
         'input': 'input',
         'target': 'target',
     },
@@ -123,6 +124,12 @@ def build_model(name, device, model_variant='v1'):
         return ShadowGuidedRestormer_NoSGCA().to(device), 'shadow_guided'
     elif name == 'shadow_guided_restormer_concat':
         return ShadowGuidedRestormer_Concat().to(device), 'shadow_guided'
+    elif name == 'shadow_guided_restormer_crossattn':
+        return ShadowGuidedRestormer_CrossAttn().to(device), 'shadow_guided'
+    elif name == 'shadow_guided_restormer_film':
+        return ShadowGuidedRestormer_FiLM().to(device), 'shadow_guided'
+    elif name == 'shadow_guided_restormer_large':
+        return ShadowGuidedRestormer_Large().to(device), 'shadow_guided'
     else:
         raise ValueError(f"Unknown model: {name}")
 
@@ -426,6 +433,8 @@ def main():
                         help='Number of DTRM pretraining epochs')
     parser.add_argument('--dtrm_weight', type=float, default=0.5,
                         help='DTRM loss weight (0=ablation no DTRM)')
+    parser.add_argument('--grad_accum', type=int, default=1,
+                        help='Gradient accumulation steps')
     parser.add_argument('--fixed_adaptive_weight', type=float, default=-1.0,
                         help='Fixed adaptive text weight (-1=adaptive, >0=fixed)')
     args = parser.parse_args()
@@ -449,12 +458,18 @@ def main():
 
     # Per-model settings: resolution override, batch_size override, text_detector
     MODEL_RES = {'docdeshadower': 384, 'shadow_guided_restormer': 256,
-                 'shadow_guided_restormer_no_sgca': 256, 'shadow_guided_restormer_concat': 256}
+                 'shadow_guided_restormer_no_sgca': 256, 'shadow_guided_restormer_concat': 256,
+                 'shadow_guided_restormer_crossattn': 384,
+                 'shadow_guided_restormer_film': 384,
+                 'shadow_guided_restormer_large': 320}
     MODEL_BS = {'nafnet': 8, 'unet': 8, 'docdeshadower': 1, 'bedsr': 4, 'restormer': 2,
                 'baseline': 4, 'textaware': 2 if args.model_variant == 'v2' else 4,
                 'shadow_guided': 4, 'shadow_guided_no_sgca': 4, 'shadow_guided_concat': 8,
                 'shadow_guided_restormer': 1, 'shadow_guided_restormer_no_sgca': 1,
-                'shadow_guided_restormer_concat': 1}
+                'shadow_guided_restormer_concat': 1,
+                'shadow_guided_restormer_crossattn': 1,
+                'shadow_guided_restormer_film': 1,
+                'shadow_guided_restormer_large': 1}
     # v2 uses gradient accumulation (bs=2 × 2 steps = effective bs=4)
     MODEL_TEXT_DET = {'textaware': (args.model_variant == 'v2')}
     MODEL_GRAD_ACCUM = {'textaware': 2} if args.model_variant == 'v2' else {}
@@ -481,7 +496,7 @@ def main():
                 if need_rebuild else train_loader
             _val_loader = build_dataloader(dataset_cfg, 'test', False, _bs, _res, text_detector=False) \
                 if need_rebuild else val_loader
-            _ga = MODEL_GRAD_ACCUM.get(model_name, 1)
+            _ga = max(MODEL_GRAD_ACCUM.get(model_name, 1), args.grad_accum)
             metrics = run_experiment(model_name, args, dataset_cfg, device, _train_loader, _val_loader, text_detector, grad_accum=_ga)
             all_results[model_name] = metrics
         except Exception as e:
