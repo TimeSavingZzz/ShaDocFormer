@@ -22,7 +22,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from models import Model as ShaDocFormer
 from models.text_aware_model import TextAwareModel, TextDetector, TextAwareLoss
 from models.comparison_models import (BEDSRGenerator, UNet, NAFNet, Restormer, ShadowGuidedNAFNet, ShadowGuidedNAFNet_NoSGCA, ShadowGuidedNAFNet_Concat, ShadowGuidedRestormer, ShadowGuidedRestormer_NoSGCA, ShadowGuidedRestormer_Concat,
-    ShadowGuidedRestormer_CrossAttn, ShadowGuidedRestormer_FiLM, ShadowGuidedRestormer_Large)
+    ShadowGuidedRestormer_CrossAttn, ShadowGuidedRestormer_FiLM, ShadowGuidedRestormer_Large,
+    ShadowGuidedRestormer_Gated, ShadowGuidedRestormer_GatedLarge)
 from config.config import Config
 from data.data_RGB import get_data
 from utils import seed_everything
@@ -130,6 +131,10 @@ def build_model(name, device, model_variant='v1'):
         return ShadowGuidedRestormer_FiLM().to(device), 'shadow_guided'
     elif name == 'shadow_guided_restormer_large':
         return ShadowGuidedRestormer_Large().to(device), 'shadow_guided'
+    elif name == 'shadow_guided_restormer_gated':
+        return ShadowGuidedRestormer_Gated().to(device), 'shadow_guided'
+    elif name == 'shadow_guided_restormer_gated_large':
+        return ShadowGuidedRestormer_GatedLarge().to(device), 'shadow_guided'
     else:
         raise ValueError(f"Unknown model: {name}")
 
@@ -459,9 +464,11 @@ def main():
     # Per-model settings: resolution override, batch_size override, text_detector
     MODEL_RES = {'docdeshadower': 384, 'shadow_guided_restormer': 256,
                  'shadow_guided_restormer_no_sgca': 256, 'shadow_guided_restormer_concat': 256,
-                 'shadow_guided_restormer_crossattn.: 192,
+                 'shadow_guided_restormer_crossattn': 192,
                  'shadow_guided_restormer_film': 384,
-                 'shadow_guided_restormer_large': 320}
+                 'shadow_guided_restormer_large': 320,
+                'shadow_guided_restormer_gated': 256,
+                'shadow_guided_restormer_gated_large': 320}
     MODEL_BS = {'nafnet': 8, 'unet': 8, 'docdeshadower': 1, 'bedsr': 4, 'restormer': 2,
                 'baseline': 4, 'textaware': 2 if args.model_variant == 'v2' else 4,
                 'shadow_guided': 4, 'shadow_guided_no_sgca': 4, 'shadow_guided_concat': 8,
@@ -469,7 +476,9 @@ def main():
                 'shadow_guided_restormer_concat': 1,
                 'shadow_guided_restormer_crossattn': 1,
                 'shadow_guided_restormer_film': 1,
-                'shadow_guided_restormer_large': 1}
+                'shadow_guided_restormer_large': 1,
+                'shadow_guided_restormer_gated': 1,
+                'shadow_guided_restormer_gated_large': 1}
     # v2 uses gradient accumulation (bs=2 × 2 steps = effective bs=4)
     MODEL_TEXT_DET = {'textaware': (args.model_variant == 'v2')}
     MODEL_GRAD_ACCUM = {'textaware': 2} if args.model_variant == 'v2' else {}
