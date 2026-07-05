@@ -14,11 +14,13 @@ device = torch.device('cuda')
 RES = 512
 
 MODEL_CH = [
-    ('Restormer', 'restormer', 'experiment_results/restormer_sd7k/restormer_best.pth'),
-    ('No SGCA',   'shadow_guided_restormer_no_sgca', 'experiment_results/nosgca_sd7k/shadow_guided_restormer_no_sgca_best.pth'),
-    ('CrossAttn', 'shadow_guided_restormer_crossattn', 'experiment_results/sgcr_sd7k/shadow_guided_restormer_crossattn_best.pth'),
-    ('FiLM',      'shadow_guided_restormer_film', 'experiment_results/sgfm_sd7k/shadow_guided_restormer_film_best.pth'),
-    ('Large',     'shadow_guided_restormer_large', 'experiment_results/sglarge_sd7k/shadow_guided_restormer_large_best.pth'),
+    ('Restormer',   'restormer', 'experiment_results/restormer_sd7k/restormer_best.pth'),
+    ('No SGCA',     'shadow_guided_restormer_no_sgca', 'experiment_results/nosgca_sd7k/shadow_guided_restormer_no_sgca_best.pth'),
+    ('CrossAttn',   'shadow_guided_restormer_crossattn', 'experiment_results/sgcr_sd7k/shadow_guided_restormer_crossattn_best.pth'),
+    ('FiLM',        'shadow_guided_restormer_film', 'experiment_results/sgfm_sd7k/shadow_guided_restormer_film_best.pth'),
+    ('Large',       'shadow_guided_restormer_large', 'experiment_results/sglarge_sd7k/shadow_guided_restormer_large_best.pth'),
+    ('Gated',       'shadow_guided_restormer_gated', 'experiment_results/sggf_sd7k/shadow_guided_restormer_gated_best.pth'),
+    ('GatedLarge',  'shadow_guided_restormer_gated_large', 'experiment_results/sggf_large_sd7k/shadow_guided_restormer_gated_large_best.pth'),
 ]
 
 ocr = easyocr.Reader(['en'], gpu=True)

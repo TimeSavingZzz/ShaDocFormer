@@ -1187,3 +1187,99 @@ if __name__ == '__main__':
         y = m(x)
         p = sum(p.numel() for p in m.parameters())
         print(f"{name}: {x.shape} -> {y.shape}, params: {p:,}")
+
+# ============================================================
+# SGGF Ablation: No Shadow Encoder (gate on decoder features only)
+# ============================================================
+class ShadowGuidedRestormer_Gated_NoShadow(Restormer):
+    """Ablation: SGGF without shadow encoder. Gate computed from decoder features alone."""
+    def __init__(self, inp_channels=3, out_channels=3, dim=48,
+                 num_blocks=None, num_refinement_blocks=4,
+                 heads=None, ffn_expansion_factor=2.66,
+                 bias=False, LayerNorm_type='WithBias'):
+        super().__init__(inp_channels=inp_channels, out_channels=out_channels, dim=dim,
+                         num_blocks=num_blocks, num_refinement_blocks=num_refinement_blocks,
+                         heads=heads, ffn_expansion_factor=ffn_expansion_factor,
+                         bias=bias, LayerNorm_type=LayerNorm_type)
+        self.shadow_encoder = ShadowEncoder(width=dim)
+        self.sggf_dec3 = SGGF(dim * 4, dim * 4)
+        self.sggf_dec2 = SGGF(dim * 2, dim * 2)
+
+    def forward(self, gray, inp):
+        B, C, H, W = inp.shape
+        if gray.shape[2:] != (H, W):
+            gray = F.interpolate(gray, size=(H, W), mode='bilinear', align_corners=False)
+        s1, s2, s3 = self.shadow_encoder(gray)
+        # Replace shadow features with zeros for ablation
+        s2 = torch.zeros_like(s2)
+        s3 = torch.zeros_like(s3)
+        inp_enc_level1 = self.patch_embed(inp)
+        out_enc_level1 = self.encoder_level1(inp_enc_level1)
+        inp_enc_level2 = self.down1_2(out_enc_level1)
+        out_enc_level2 = self.encoder_level2(inp_enc_level2)
+        inp_enc_level3 = self.down2_3(out_enc_level2)
+        out_enc_level3 = self.encoder_level3(inp_enc_level3)
+        inp_enc_level4 = self.down3_4(out_enc_level3)
+        latent = self.latent(inp_enc_level4)
+        inp_dec_level3 = self.up4_3(latent)
+        inp_dec_level3 = torch.cat([inp_dec_level3, out_enc_level3], 1)
+        inp_dec_level3 = self.reduce_chan_level3(inp_dec_level3)
+        out_dec_level3 = self.decoder_level3(inp_dec_level3)
+        out_dec_level3 = self.sggf_dec3(out_dec_level3, s3)
+        inp_dec_level2 = self.up3_2(out_dec_level3)
+        inp_dec_level2 = torch.cat([inp_dec_level2, out_enc_level2], 1)
+        inp_dec_level2 = self.reduce_chan_level2(inp_dec_level2)
+        out_dec_level2 = self.decoder_level2(inp_dec_level2)
+        out_dec_level2 = self.sggf_dec2(out_dec_level2, s2)
+        inp_dec_level1 = self.up2_1(out_dec_level2)
+        inp_dec_level1 = torch.cat([inp_dec_level1, out_enc_level1], 1)
+        out_dec_level1 = self.decoder_level1(inp_dec_level1)
+        out_dec_level1 = self.refinement(out_dec_level1)
+        out_dec_level1 = self.output(out_dec_level1) + inp
+        return out_dec_level1
+
+
+# ============================================================
+# SGGF Ablation: Dec3-only fusion (single-scale)
+# ============================================================
+class ShadowGuidedRestormer_Gated_Dec3Only(Restormer):
+    """Ablation: SGGF fusion only at decoder level 3 (bottleneck)."""
+    def __init__(self, inp_channels=3, out_channels=3, dim=48,
+                 num_blocks=None, num_refinement_blocks=4,
+                 heads=None, ffn_expansion_factor=2.66,
+                 bias=False, LayerNorm_type='WithBias'):
+        super().__init__(inp_channels=inp_channels, out_channels=out_channels, dim=dim,
+                         num_blocks=num_blocks, num_refinement_blocks=num_refinement_blocks,
+                         heads=heads, ffn_expansion_factor=ffn_expansion_factor,
+                         bias=bias, LayerNorm_type=LayerNorm_type)
+        self.shadow_encoder = ShadowEncoder(width=dim)
+        self.sggf_dec3 = SGGF(dim * 4, dim * 4)
+
+    def forward(self, gray, inp):
+        B, C, H, W = inp.shape
+        if gray.shape[2:] != (H, W):
+            gray = F.interpolate(gray, size=(H, W), mode='bilinear', align_corners=False)
+        s1, s2, s3 = self.shadow_encoder(gray)
+        inp_enc_level1 = self.patch_embed(inp)
+        out_enc_level1 = self.encoder_level1(inp_enc_level1)
+        inp_enc_level2 = self.down1_2(out_enc_level1)
+        out_enc_level2 = self.encoder_level2(inp_enc_level2)
+        inp_enc_level3 = self.down2_3(out_enc_level2)
+        out_enc_level3 = self.encoder_level3(inp_enc_level3)
+        inp_enc_level4 = self.down3_4(out_enc_level3)
+        latent = self.latent(inp_enc_level4)
+        inp_dec_level3 = self.up4_3(latent)
+        inp_dec_level3 = torch.cat([inp_dec_level3, out_enc_level3], 1)
+        inp_dec_level3 = self.reduce_chan_level3(inp_dec_level3)
+        out_dec_level3 = self.decoder_level3(inp_dec_level3)
+        out_dec_level3 = self.sggf_dec3(out_dec_level3, s3)
+        inp_dec_level2 = self.up3_2(out_dec_level3)
+        inp_dec_level2 = torch.cat([inp_dec_level2, out_enc_level2], 1)
+        inp_dec_level2 = self.reduce_chan_level2(inp_dec_level2)
+        out_dec_level2 = self.decoder_level2(inp_dec_level2)
+        inp_dec_level1 = self.up2_1(out_dec_level2)
+        inp_dec_level1 = torch.cat([inp_dec_level1, out_enc_level1], 1)
+        out_dec_level1 = self.decoder_level1(inp_dec_level1)
+        out_dec_level1 = self.refinement(out_dec_level1)
+        out_dec_level1 = self.output(out_dec_level1) + inp
+        return out_dec_level1
