@@ -380,6 +380,36 @@ SGGF 模块仅增加约 0.3M 参数（压缩比为 $C_d/4$ 的瓶颈结构，含
 交叉注意力在 192$\times$192 分辨率下测试，因为其 Key/Value 投影在 256$\times$256 下会导致显存溢出（192$\times$192 下已需 2774~MB，而其他模型在 256$\times$256 下仅需 699~MB），使其不适用于高分辨率文档处理。
 Large 和 GatedLarge 变体的参数量和推理时间均翻倍（46.7M，346~ms），提供了清晰的精度--效率权衡。
 
+\subsection{感知质量评估（LPIPS）}
+
+我们使用LPIPS~\cite{zhang2018lpips}（AlexNet骨干网络）作为补充指标，该学习式感知度量与人类主观判断的相关性更好。
+表~\ref{tab:lpips}报告了SD7K测试集上的LPIPS得分。
+
+\begin{table}[t]
+\centering
+\caption{\textbf{SD7K LPIPS感知质量。}越低越好。粗体=最优。}
+\label{tab:lpips}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{模型} & \textbf{融合方式} & \textbf{LPIPS$\downarrow$} \\
+\midrule
+Restormer      & 无          & 0.0554 \\
+\rowcolor{gray!15}
+\textbf{无 SGCA} & 拼接        & \textbf{0.0461} \\
+SGCF（交叉注意力） & 交叉注意力  & 0.0480 \\
+SGFM（FiLM）   & FiLM        & 0.0557 \\
+SGGF Gated     & 门控        & 0.0496 \\
+SGGF GatedLarge & 门控        & 0.0516 \\
+Large          & 拼接        & 0.0496 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+一个令人惊讶的发现：\textbf{无SGCA（简单拼接）取得了最佳感知质量}（LPIPS 0.0461），而FiLM——PSNR领先者（24.77~dB）——在dim=48模型中记录了\textit{最差}的LPIPS（0.0557），甚至低于普通Restormer（0.0554）。
+这一经典的PSNR-感知质量权衡揭示了FiLM的激进调制在降低像素误差的同时引入了人眼可感知的细微伪影。
+拼接的无参数融合保留了Restormer骨干网络的自然特征统计特性，从而产生了更优的感知保真度。
+这一发现进一步佐证了我们的跨数据集结果（第~\ref{sec:cross_dataset}~节），其中拼接同样泛化最佳，表明\textbf{更简单的融合策略感知上更忠实}。
+
 \subsection{训练稳定性分析}
 \label{sec:stability}
 
@@ -597,6 +627,11 @@ in \textit{CVPR Workshops}, 2019.
 N.~Shazeer,
 ``GLU variants improve transformer,''
 \textit{arXiv preprint arXiv:2002.05202}, 2020.
+
+\bibitem{zhang2018lpips}
+R.~Zhang, P.~Isola, A.~A. Efros, E.~Shechtman, and O.~Wang,
+``The unreasonable effectiveness of deep features as a perceptual metric,''
+in \textit{CVPR}, 2018.
 
 \end{thebibliography}
 

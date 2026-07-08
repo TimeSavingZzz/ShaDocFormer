@@ -392,6 +392,36 @@ The SGGF module adds only $\sim$0.3M parameters (a bottleneck of $C_d/4$ with tw
 Cross-attention is tested at 192$\times$192 because its key/value projections cause OOM at 256$\times$256 (2774~MB at 192$\times$192 vs.~699~MB for other models at 256$\times$256), making it impractical for high-resolution document processing.
 The Large and GatedLarge variants double the parameter count (46.7M) and inference time (346~ms), offering a clear accuracy--efficiency trade-off.
 
+\subsection{Perceptual Quality (LPIPS)}
+
+We complement PSNR/SSIM with LPIPS~\cite{zhang2018lpips} (AlexNet backbone), a learned perceptual metric that correlates better with human judgment.
+Table~\ref{tab:lpips} reports LPIPS scores on the SD7K test set.
+
+\begin{table}[t]
+\centering
+\caption{\textbf{LPIPS perceptual quality on SD7K.} Lower is better. Bold = best.}
+\label{tab:lpips}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Model} & \textbf{Fusion} & \textbf{LPIPS$\downarrow$} \\
+\midrule
+Restormer      & None        & 0.0554 \\
+\rowcolor{gray!15}
+\textbf{No SGCA} & Concat      & \textbf{0.0461} \\
+SGCF (CrossAttn) & Cross-attn  & 0.0480 \\
+SGFM (FiLM)    & FiLM        & 0.0557 \\
+SGGF Gated     & Gated       & 0.0496 \\
+SGGF GatedLarge & Gated       & 0.0516 \\
+Large          & Concat      & 0.0496 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A striking finding emerges: \textbf{No SGCA (simple concatenation) achieves the best perceptual quality} (LPIPS 0.0461), while FiLM---the PSNR leader (24.77~dB)---records the \textit{worst} LPIPS (0.0557) among dim=48 models, even trailing the vanilla Restormer (0.0554).
+This classic PSNR--perceptual trade-off reveals that FiLM's aggressive modulation, while reducing pixel-wise error, introduces subtle artifacts that are perceptually detectable.
+Concatenation's parameter-free fusion preserves the natural feature statistics of the Restormer backbone, yielding superior perceptual fidelity.
+This finding reinforces our cross-dataset result (Sec.~\ref{sec:cross_dataset}) where concatenation also generalizes best, suggesting that \textbf{simpler fusion strategies are more perceptually faithful}.
+
 \begin{figure}[t]
 \centering
 \includegraphics[width=\textwidth]{figures/fig7_efficiency.pdf}
@@ -619,6 +649,11 @@ in \textit{CVPR Workshops}, 2019.
 N.~Shazeer,
 ``GLU variants improve transformer,''
 \textit{arXiv preprint arXiv:2002.05202}, 2020.
+
+\bibitem{zhang2018lpips}
+R.~Zhang, P.~Isola, A.~A. Efros, E.~Shechtman, and O.~Wang,
+``The unreasonable effectiveness of deep features as a perceptual metric,''
+in \textit{CVPR}, 2018.
 
 \end{thebibliography}
 
