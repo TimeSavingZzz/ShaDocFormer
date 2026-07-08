@@ -61,6 +61,17 @@
     "RDD":                      {"status": "Training on GPU1, just launched"}
   },
 
+  "lpips_perceptual": {
+    "Restormer":      0.0554,
+    "No SGCA":        0.0461,
+    "CrossAttn":      0.0480,
+    "FiLM":           0.0557,
+    "Gated":          0.0496,
+    "GatedLarge":     0.0516,
+    "Large":          0.0496,
+    "note": "LPIPS↓ (AlexNet). Lower=better perceptual quality. No SGCA (concatenation) BEST! FiLM WORST despite best PSNR. Classic PSNR-perceptual trade-off."
+  },
+
   "efficiency": {
     "Restormer":      {"params_M": 26.13, "time_ms": 181.6, "memory_MB": 676},
     "No SGCA":        {"params_M": 26.43, "time_ms": 181.9, "memory_MB": 699},
@@ -108,6 +119,7 @@
     "ocr_512": "All models achieve >98% character recovery at 512x512. FiLM leads at 101.3%.",
     "docdeshadower_baseline": "DocDeshadower SD7K 21.81 dB vs our best 24.77 dB. +2.96 dB improvement over SOTA.",
     "sgfm_v2_rdd": "Gradient clipping rescues FiLM on RDD: 37.01 dB with best TextPSNR (33.89).",
-    "sggfv2": "SGGFv2 with learnable temperature training — tests adaptive gating sharpness."
+    "sggfv2": "SGGFv2 with learnable temperature training — tests adaptive gating sharpness.",
+    "lpips_surprise": "No SGCA (concat) has BEST LPIPS (0.0461) while being simplest. FiLM has WORST LPIPS (0.0557) despite best PSNR (24.77dB). PSNR≠perceptual quality — major paper insight!"
   }
 }
