@@ -38,10 +38,10 @@
   },
 
   "experiments_running_2026-07-08": {
-    "GPU0_SGGFv2_SD7K":        "SGGFv2 with learnable temperature, SD7K 200ep, 256res",
-    "GPU1_DocDeshadower_RDD":   "SOTA baseline on real dataset, 384res",
-    "GPU2_LPIPS_eval":          "LPIPS perceptual metric for all 7 SD7K models",
-    "GPU3_GatedLarge_RDD_320res": "Resumed from epoch 49, 320res, higher-res gating"
+    "GPU0_SGGFv2_SD7K":        "SGGFv2 with learnable temperature, SD7K 200ep, 256res, epoch 26/200",
+    "GPU1_DocDeshadower_RDD":   "SOTA baseline on real dataset, 384res, just launched",
+    "GPU2_Restormer_RDD_320res": "Restormer baseline RDD 320res, launched 14:50",
+    "GPU3_GatedLarge_RDD_320res": "Resumed from epoch 49, now at epoch 51, 320res"
   },
 
   "cross_dataset": {
