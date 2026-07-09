@@ -37,11 +37,16 @@
     "SGFM v1 (retry)":          "NaN at epoch 125"
   },
 
-  "experiments_running_2026-07-08": {
-    "GPU0_SGGFv2_SD7K":        "SGGFv2 with learnable temperature, SD7K 200ep, 256res, epoch 26/200",
-    "GPU1_DocDeshadower_RDD":   "SOTA baseline on real dataset, 384res, just launched",
-    "GPU2_Restormer_RDD_320res": "Restormer baseline RDD 320res, launched 14:50",
-    "GPU3_GatedLarge_RDD_320res": "Resumed from epoch 49, now at epoch 51, 320res"
+  "SGGFv2_results": {
+    "SGGFv2 (learnable tau)":  {"psnr": 24.31, "ssim": 0.9279, "rmse": 22.21, "text_psnr": 27.77,
+      "note": "Nearly identical to SGGF v1 (24.31/0.9243/27.75). Learnable temperature converges to ~1.0 — validates original fixed sigmoid is already optimal. Negative result but useful design validation."}
+  },
+
+  "experiments_running_2026-07-09": {
+    "GPU0_DocDeshadower_RDD":   "DocDeshadower RDD retry, 384res, relaunched",
+    "GPU1_NoSGCA_RDD_320res":   "No SGCA (concat) RDD 320res, 200ep",
+    "GPU2_Restormer_RDD_320res": "Restormer baseline RDD 320res, epoch 33/200",
+    "GPU3_GatedLarge_RDD_320res": "GatedLarge RDD 320res, epoch 74/200"
   },
 
   "cross_dataset": {
