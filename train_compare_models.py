@@ -447,12 +447,20 @@ def main():
                         help='Gradient accumulation steps')
     parser.add_argument('--fixed_adaptive_weight', type=float, default=-1.0,
                         help='Fixed adaptive text weight (-1=adaptive, >0=fixed)')
+    parser.add_argument('--train_dir', type=str, default='',
+                        help='Override train directory (for subset experiments)')
+    parser.add_argument('--val_dir', type=str, default='',
+                        help='Override val directory (for subset experiments)')
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     torch.backends.cudnn.benchmark = True
 
-    dataset_cfg = DATASET_CONFIGS[args.dataset]
+    dataset_cfg = DATASET_CONFIGS[args.dataset].copy()
+    if args.train_dir:
+        dataset_cfg['train_dir'] = args.train_dir
+    if args.val_dir:
+        dataset_cfg['val_dir'] = args.val_dir
     print(f"Device: {device} | Dataset: {args.dataset} | Res: {args.res} | BS: {args.batch_size} | Epochs: {args.epochs}")
     print(f"Train: {dataset_cfg['train_dir']} | Val: {dataset_cfg['val_dir']}")
     print(f"AMP: ON | Grad Clip: 1.0")
