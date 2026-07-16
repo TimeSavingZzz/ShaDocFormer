@@ -247,9 +247,9 @@ def analyze_model(model, model_name, dataloader, device, output_dir, num_samples
 
             _ATTN_STORE.clear()
 
-            # Forward — baseline Restormer only takes input image
+            # Forward — baseline Restormer takes RGB input; shadow-guided takes (gray, shadow)
             if 'baseline' in model_name.lower():
-                out = model(gray_img)
+                out = model(inp_img)
             else:
                 out = model(gray_img, inp_img)
 
