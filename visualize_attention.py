@@ -51,9 +51,9 @@ def _mdta_patched_forward(self, x):
     attn = (q @ k.transpose(-2, -1)) * self.temperature  # [B, H, N, N]
     attn = attn.softmax(dim=-1)
 
-    # Store attention
+    # Store attention + spatial dims
     layer_id = id(self)
-    _ATTN_STORE[layer_id] = attn.detach().cpu()
+    _ATTN_STORE[layer_id] = (attn.detach().cpu(), (h, w))
 
     out = attn @ v
     out = out.reshape(b, -1, h, w)
@@ -80,14 +80,15 @@ def get_mdta_names(model):
 
 
 # ── Visualization ───────────────────────────────────────────
-def render_attention_overlay(img_shadow, img_output, attn_weights, title, save_path):
+def render_attention_overlay(img_shadow, img_output, attn_weights, attn_spatial, title, save_path):
     """
     img_shadow: [3, H, W] tensor (0-1 range)
     img_output: [3, H, W] tensor (model output, 0-1 range)
     attn_weights: [B, heads, N, N] attention matrix from one decoder layer
+    attn_spatial: (H, W) tuple of the feature map
     """
     b, n_heads, N, _ = attn_weights.shape
-    Hmap = Wmap = int(np.sqrt(N))
+    Hmap, Wmap = attn_spatial
 
     # Mean attention received per spatial position (averaged over all heads & queries)
     attn_received = attn_weights[0].mean(dim=0).mean(dim=0)  # [N]
@@ -169,9 +170,10 @@ def render_comparison_figure(all_model_data, save_path, layer_name):
 
         # Attention map
         attn = data['attn']
-        N = attn.shape[-1]
-        Hmap = int(np.sqrt(N))
-        attn_received = attn[0].mean(dim=0).mean(dim=0).reshape(Hmap, Hmap).numpy()
+        Hmap, Wmap = data.get('spatial', (int(np.sqrt(attn.shape[-1])),) * 2)
+        if isinstance(Hmap, tuple):  # fallback
+            Hmap = Wmap = int(np.sqrt(attn.shape[-1]))
+        attn_received = attn[0].mean(dim=0).mean(dim=0).reshape(Hmap, Wmap).numpy()
         a_min, a_max = attn_received.min(), attn_received.max()
         if a_max > a_min:
             attn_received = (attn_received - a_min) / (a_max - a_min)
@@ -255,15 +257,18 @@ def analyze_model(model, model_name, dataloader, device, output_dir, num_samples
 
             # Map stored attention IDs to names
             sample_attns = {}
-            for layer_id, attn_tensor in _ATTN_STORE.items():
+            sample_spatials = {}
+            for layer_id, (attn_tensor, spatial) in _ATTN_STORE.items():
                 name = id_to_name.get(layer_id, f"unknown_{layer_id}")
                 sample_attns[name] = attn_tensor
+                sample_spatials[name] = spatial
 
             all_results.append({
                 'shadow': inp_img[0].cpu(),
                 'output': out[0].cpu().clamp(0, 1),
                 'target': tar_img[0].cpu(),
                 'attns': sample_attns,
+                'spatials': sample_spatials,
                 'fname': fname[0] if isinstance(fname, (list, tuple)) else str(fname),
             })
 
@@ -285,11 +290,12 @@ def analyze_model(model, model_name, dataloader, device, output_dir, num_samples
         for layer_name in target_layers:
             if layer_name in result['attns']:
                 attn = result['attns'][layer_name]
+                spatial = result['spatials'].get(layer_name, (8, 8))
                 save_name = f'sample{sample_idx:02d}_{layer_name.replace(".","_")}.png'
                 save_path = os.path.join(model_out_dir, save_name)
                 title = f'{model_name} | {layer_name} | Sample {sample_idx}'
                 render_attention_overlay(result['shadow'], result['output'],
-                                         attn, title, save_path)
+                                         attn, spatial, title, save_path)
 
     print(f"  Saved {len(all_results)} samples × {len(target_layers)} layers to {model_out_dir}")
     return all_results, target_layers
@@ -385,6 +391,7 @@ def main():
                                 'shadow': r['shadow'],
                                 'output': r['output'],
                                 'attn': r['attns'][layer_name],
+                                'spatial': r.get('spatials', {}).get(layer_name),
                             })
 
                 if len(comparison_data) >= 2:
