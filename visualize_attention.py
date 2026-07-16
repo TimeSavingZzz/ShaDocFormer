@@ -247,8 +247,11 @@ def analyze_model(model, model_name, dataloader, device, output_dir, num_samples
 
             _ATTN_STORE.clear()
 
-            # Forward
-            out = model(gray_img, inp_img)
+            # Forward — baseline Restormer only takes input image
+            if 'baseline' in model_name.lower():
+                out = model(gray_img)
+            else:
+                out = model(gray_img, inp_img)
 
             # Map stored attention IDs to names
             sample_attns = {}
