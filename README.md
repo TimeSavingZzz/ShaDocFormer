@@ -1,6 +1,5 @@
 # Understanding Feature Fusion Strategies in Transformer-based Image Restoration
 
-[![Paper](https://img.shields.io/badge/Paper-PDF-blue)](./paper/apin-submission/main.pdf)
 [![License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
 
 Official code for the paper **"Understanding Feature Fusion Strategies in Transformer-based Image Restoration: Evidence from Document Shadow Removal"** (under review, *Applied Intelligence*).
@@ -92,7 +91,6 @@ All strategies share the same Restormer U-Net backbone, training protocol, and l
 ├── utils/
 │   └── utils.py                # PSNR, SSIM, visualization utilities
 ├── paper/
-│   ├── apin-submission/        # APIN paper LaTeX source + figures
 │   └── experiment_results.json # Complete numerical results
 ├── train_compare_models.py     # Main training script (supports 6 models × 2 datasets)
 ├── train.py                    # Original ShaDocFormer training script
