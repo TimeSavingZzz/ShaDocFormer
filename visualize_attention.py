@@ -89,6 +89,14 @@ def render_attention_overlay(img_shadow, img_output, attn_weights, attn_spatial,
     """
     b, n_heads, N, _ = attn_weights.shape
     Hmap, Wmap = attn_spatial
+    if Hmap * Wmap != N:
+        # Fallback: find factor pair closest to square
+        for d in range(int(N**0.5), 0, -1):
+            if N % d == 0:
+                Hmap, Wmap = d, N // d
+                break
+        else:
+            Hmap = Wmap = int(N**0.5)
 
     # Mean attention received per spatial position (averaged over all heads & queries)
     attn_received = attn_weights[0].mean(dim=0).mean(dim=0)  # [N]
@@ -170,9 +178,15 @@ def render_comparison_figure(all_model_data, save_path, layer_name):
 
         # Attention map
         attn = data['attn']
-        Hmap, Wmap = data.get('spatial', (int(np.sqrt(attn.shape[-1])),) * 2)
-        if isinstance(Hmap, tuple):  # fallback
-            Hmap = Wmap = int(np.sqrt(attn.shape[-1]))
+        Hmap, Wmap = data.get('spatial', (None, None))
+        if Hmap is None or Hmap * Wmap != attn.shape[-1]:
+            N = attn.shape[-1]
+            for d in range(int(N**0.5), 0, -1):
+                if N % d == 0:
+                    Hmap, Wmap = d, N // d
+                    break
+            else:
+                Hmap = Wmap = int(N**0.5)
         attn_received = attn[0].mean(dim=0).mean(dim=0).reshape(Hmap, Wmap).numpy()
         a_min, a_max = attn_received.min(), attn_received.max()
         if a_max > a_min:

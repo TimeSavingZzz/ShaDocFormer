@@ -1,98 +1,123 @@
-# Transformer 阴影融合策略的系统性诊断
+# Understanding Feature Fusion Strategies in Transformer-based Image Restoration
 
-[![Paper](https://img.shields.io/badge/Paper-PDF-blue)](./paper/main_cn.pdf)
+[![Paper](https://img.shields.io/badge/Paper-PDF-blue)](./paper/apin-submission/main.pdf)
 [![License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
 
-本项目对文档阴影去除中 **Transformer 融合策略的有效性** 进行系统性诊断研究，核心发现：**融合策略的效果取决于训练数据规模与域差异**——复杂融合 (FiLM) 在大规模合成数据上最优，但简单拼接在小规模真实数据上更优。
+Official code for the paper **"Understanding Feature Fusion Strategies in Transformer-based Image Restoration: Evidence from Document Shadow Removal"** (under review, *Applied Intelligence*).
 
-## 动机
+**TL;DR**: We systematically characterize five representative fusion strategies (Concatenation, Cross-Attention, FiLM, Gated, Capacity Scaling) under a controlled Restormer framework across synthetic and real-world document shadow removal datasets. Our key finding: **Transformer self-attention on skip connections already provides implicit cross-modal alignment, making simple concatenation sufficient for real-world data, while complex modulation (FiLM) excels on synthetic data but carries a mechanism-level instability risk on real data.**
 
-现有文档阴影去除方法在 Transformer backbone 上引入各种阴影引导融合模块，但这些模块为何有效、何时有效、以及如何选择，尚无系统答案。本文在统一 Restormer 框架下对比 5 种融合策略，从数据规模、域差异、注意力机制三个维度进行诊断分析。
+---
 
-## 五种融合策略
+## Four Key Findings
 
-| 模型 | 融合方式 | 描述 |
-|------|---------|------|
-| **Restormer** (baseline) | 无融合 | 仅输入拼接，无独立 shadow encoder |
-| **No SGCA** | Concat 拼接 | Shadow encoder 输出与 decoder feature 拼接，无门控 |
-| **SGCF** | Cross-Attention | Q=decoder, K/V=shadow encoder, 多头交叉注意力融合 |
-| **SGFM** (FiLM) | FiLM 调制 | Shadow encoder 预测 scale/bias 进行特征调制 (tanh 归一化) |
-| **SGGF** (Gated) | Sigmoid 门控 | Sigmoid 门控逐通道加权融合 |
-| **Large** | Concat + dim=64 | No SGCA 的大模型版本 (dim 48→64) |
+| Finding | Core Insight |
+|---------|-------------|
+| **F1: Domain Flipping** | Optimal fusion reverses across domains: FiLM wins on synthetic (24.77 dB), Concat wins on real (37.20 dB). No single best strategy exists. |
+| **F2: Dual Constraint Law** | Data domain determines strategy *ranking*; data volume determines gap *magnitude*. FiLM outperforms Concat at all data sizes on synthetic data (no crossover). |
+| **F3: Self-Attention as Built-in Fusion** | Decoder self-attention on skip connections already focuses on shadow regions *without* any fusion module. Attention visualization provides direct evidence. |
+| **F4: Robustness Hierarchy** | Concat generalizes best (zero-shot SD7K→RDD: 18.59 dB). FiLM collapses to NaN on real data (tanh saturation) — a previously unreported risk. |
 
-## 核心发现
+---
 
-1. **数据依赖律**: 融合策略效果与训练数据量强相关。SGFM (FiLM) 在 SD7K 上超越 No SGCA +1.03 dB (24.77 vs 23.74)，但在 RDD 上不如 No SGCA (37.01 vs 37.20)，因为小数据下复杂融合过拟合。
+## Five Fusion Strategies
 
-2. **Transformer 自注意力已处理跨模态交互**: 注意力可视化显示，即使无独立 shadow encoder 的 Restormer baseline，其 decoder 自注意力也已聚焦阴影区域。额外融合模块的作用是增强 (而非建立) 跨模态交互。
+| Strategy | Type | Params | Mechanism |
+|----------|------|--------|-----------|
+| **Concat** | Concatenation | +0.30M | Conv([decoder_feat; projected_encoder_feat]) |
+| **Cross-Attn** | Attention | +0.44M | Multi-head cross-attention: Q=decoder, KV=shadow |
+| **FiLM** | Modulation | +0.34M | Channel-wise F⊙(1+tanh(γ)) + β |
+| **Gated** | Gating | +0.29M | Sigmoid-gated convex combination F⊙g + S⊙(1-g) |
+| **Large** | Capacity | +20.58M | Concat with backbone dim expanded 48→64 |
 
-3. **域差异定性**: RDD→SD7K 迁移 (~14.6 dB) 与 SD7K→RDD 迁移 (~18.6 dB) 表现出不对称域差异，合成数据难以模拟真实阴影退化。
+All strategies share the same Restormer U-Net backbone, training protocol, and loss function, enabling controlled comparison.
 
-4. **参数扩展 vs. 融合设计**: 将 No SGCA 的 dim 从 48 提升至 64 (Large) 在两个数据集上均稳定提升，是论文最可靠的结果，适合追求鲁棒性的应用。
+---
 
-## 实验结果
+## Main Results
 
-### SD7K (合成文档阴影, 200 train pairs)
+### SD7K (Synthetic, 200 training pairs)
 
-| 模型 | PSNR↑ | SSIM↑ | RMSE↓ | TextPSNR↑ |
-|------|-------|-------|-------|-----------|
-| Restormer | 23.43 | 0.9174 | 23.61 | 26.62 |
-| No SGCA | 23.74 | 0.9218 | 23.45 | 27.24 |
-| SGCF (CrossAttn) | 23.76 | 0.9164 | 23.64 | 26.46 |
-| **SGFM (FiLM)** | **24.77** | **0.9308** | **21.94** | **27.47** |
-| SGGF (Gated) | — | — | — | — |
-| Large (dim=64) | 24.51 | 0.9282 | 22.10 | 27.61 |
+| Model | PSNR↑ | SSIM↑ | TextPSNR↑ | LPIPS↓ | Params | Time |
+|-------|-------|-------|-----------|--------|--------|------|
+| Restormer (no fusion) | 23.43 | 0.9174 | 26.62 | 0.0554 | 26.13M | 181.6ms |
+| Concat | 23.74 | 0.9218 | 27.24 | **0.0461** | 26.43M | 181.9ms |
+| Cross-Attn | 23.76 | 0.9164 | 26.46 | 0.0480 | 26.57M | 135.0ms |
+| **FiLM** | **24.77** | **0.9308** | 27.47 | 0.0557 | 26.47M | 182.5ms |
+| Gated | 24.31 | 0.9243 | **27.75** | 0.0496 | 26.42M | 182.6ms |
+| Large (dim=64) | 24.51 | 0.9282 | 27.61 | 0.0496 | 46.71M | 346.0ms |
 
-### RDD (真实文档, 1080 train pairs)
+### RDD (Real-world, 1080 training pairs)
 
-| 模型 | PSNR↑ | SSIM↑ | RMSE↓ | TextPSNR↑ |
-|------|-------|-------|-------|-----------|
-| Restormer | 35.72 | 0.9753 | 5.32 | 33.18 |
-| **No SGCA** | **37.20** | **0.9803** | **4.78** | **34.52** |
-| SGCF (CrossAttn) | 37.03 | 0.9796 | 4.83 | 34.27 |
-| SGFM (FiLM) | 37.01 | 0.9797 | 4.89 | 34.29 |
-| SGGF (Gated) | 35.53 | 0.9747 | 5.65 | 33.18 |
-| Large (dim=64) | 37.05 | 0.9749 | 4.90 | 33.49 |
+| Model | PSNR↑ | SSIM↑ | TextPSNR↑ | LPIPS↓ | Params | Time |
+|-------|-------|-------|-----------|--------|--------|------|
+| Restormer (no fusion) | 35.72 | 0.9753 | 33.18 | — | 26.13M | 181.6ms |
+| **Concat** | **37.20** | **0.9803** | 34.52 | — | 26.43M | 181.9ms |
+| Cross-Attn† | 36.99 | 0.9701 | 32.92 | — | 26.57M | 135.0ms |
+| FiLM* | 37.01 | 0.9797 | 34.29 | — | 26.47M | 182.5ms |
+| Gated | 35.53 | 0.9747 | 33.18 | — | 26.42M | 182.6ms |
+| Large (dim=64) | 37.05 | 0.9749 | 33.49 | — | 46.71M | 346.0ms |
 
-## 项目结构
+† 192×192 due to OOM. \* FiLM v2 with gradient clipping; v1 diverged to NaN at E125/E130.
+
+### Scaling Curve (SD7K subsets, 100 epochs)
+
+| Data Pairs | Concat | FiLM | Gated | FiLM–Concat Gap |
+|-----------|--------|------|-------|-----------------|
+| 30 | 22.98 | 23.35 | 23.31 | +0.37 |
+| 60 | 23.47 | 23.77 | 23.78 | +0.30 |
+| 100 | 23.56 | 23.93 | 23.31 | +0.37 |
+| 150 | 23.89 | 24.09 | 23.81 | +0.20 |
+| 200* | 23.74 | 24.77 | 24.31 | +1.03 |
+
+\*200 pairs at 200 epochs.
+
+---
+
+## Project Structure
 
 ```
 ├── models/
-│   ├── comparison_models.py   # 5 种融合策略模型定义 + SGCF/SGFM/SGGF 模块
-│   ├── model.py               # 原始 ShaDocFormer (IJCNN 2024)
-│   ├── mask.py                # Shadow-attentive threshold detector
-│   ├── refine.py              # Cascaded fusion refiner
-│   └── text_aware_model.py    # Text-aware 变体
+│   ├── comparison_models.py    # 6 model variants (Restormer baseline + 5 fusion)
+│   ├── model.py                # Original ShaDocFormer (IJCNN 2024)
+│   ├── mask.py                 # Shadow-attentive threshold detector
+│   ├── refine.py               # Cascaded fusion refiner
+│   └── text_aware_model.py     # Text-aware variant
 ├── data/
-│   ├── data_RGB.py            # 数据加载器
-│   ├── dataset_RGB.py         # RDD 数据集
-│   └── synthetic_dataset.py   # SD7K 合成数据集
+│   ├── data_RGB.py             # Data loader
+│   ├── dataset_RGB.py          # RDD dataset
+│   └── synthetic_dataset.py    # SD7K synthetic dataset
 ├── config/
-│   └── config.py              # 配置管理
+│   └── config.py               # Configuration management
 ├── utils/
-│   └── utils.py               # 工具函数 (PSNR, SSIM, 可视化等)
-├── paper/                     # 论文 LaTeX 源码与分析脚本
-├── train_compare_models.py    # 主训练脚本 (支持 5 模型 × 2 数据集)
-├── train.py                   # 原始 ShaDocFormer 训练脚本
-├── test.py                    # 原始 ShaDocFormer 测试脚本
-├── eval_cross_dataset.py      # 跨域泛化评估
-├── eval_ocr.py                # OCR 精度评估 (Tesseract + PaddleOCR)
-├── eval_efficiency.py         # 模型效率评估 (参数量/FLOPs/推理时间)
-├── evaluate_checkpoint.py     # 单 checkpoint 评估
-├── eval_all_checkpoints.py    # 批量 checkpoint 评估
-├── run_scaling_curve.py       # 数据量缩放曲线实验
-├── visualize_attention.py     # Decoder 自注意力可视化
-├── cross_dataset_eval.py      # 跨数据集评估结果汇总
-├── plot_training_curves.py    # 训练曲线绘制
-├── plot_progress.py           # 实验进度可视化
-├── config.yml                 # 训练参数配置
-├── environment.yml            # Conda 环境
-└── requirements.txt           # Python 依赖
+│   └── utils.py                # PSNR, SSIM, visualization utilities
+├── paper/
+│   ├── apin-submission/        # APIN paper LaTeX source + figures
+│   └── experiment_results.json # Complete numerical results
+├── train_compare_models.py     # Main training script (supports 6 models × 2 datasets)
+├── train.py                    # Original ShaDocFormer training script
+├── test.py                     # Original ShaDocFormer test script
+├── run_scaling_curve.py        # Data scaling curve experiment
+├── run_scaling_chain.py        # Sequential scaling job launcher (GPU 1)
+├── visualize_attention.py      # Decoder self-attention visualization
+├── eval_cross_dataset.py       # Cross-domain generalization evaluation
+├── eval_ocr.py                 # OCR accuracy evaluation
+├── eval_efficiency.py          # Model efficiency evaluation
+├── evaluate_checkpoint.py      # Single checkpoint evaluation
+├── eval_all_checkpoints.py     # Batch checkpoint evaluation
+├── cross_dataset_eval.py       # Cross-dataset result aggregation
+├── plot_training_curves.py     # Training curve plotting
+├── plot_progress.py            # Experiment progress visualization
+├── config.yml                  # Training parameter configuration
+├── environment.yml             # Conda environment
+└── requirements.txt            # Python dependencies
 ```
 
-## 快速开始
+---
 
-### 环境配置
+## Quick Start
+
+### Environment
 
 ```bash
 git clone https://github.com/TimeSavingZzz/ShaDocFormer.git
@@ -101,66 +126,81 @@ conda env create -f environment.yml
 conda activate shadocformer
 ```
 
-### 训练
+### Training
 
 ```bash
-# 在 RDD (真实文档) 上训练 No SGCA 模型
-python train_compare_models.py --model shadow_guided_restormer_no_sgca --dataset rdd --epochs 200 --lr 2e-4 --res 384
+# Train Concat model on RDD (real documents)
+python train_compare_models.py \
+    --model shadow_guided_restormer_no_sgca \
+    --dataset rdd --epochs 200 --lr 2e-4 --res 320
 
-# 在 SD7K (合成文档) 上训练 FiLM 模型
-python train_compare_models.py --model shadow_guided_restormer_film --dataset sd7k --epochs 200 --lr 2e-4 --res 320
+# Train FiLM model on SD7K (synthetic documents)
+python train_compare_models.py \
+    --model shadow_guided_restormer_film \
+    --dataset sd7k --epochs 200 --lr 2e-4 --res 320
 
-# 可用模型: restormer, shadow_guided_restormer_no_sgca, shadow_guided_restormer_crossattn,
-#            shadow_guided_restormer_film, shadow_guided_restormer_gated, shadow_guided_restormer_large
+# Available models: restormer, shadow_guided_restormer_no_sgca,
+#   shadow_guided_restormer_crossattn, shadow_guided_restormer_film,
+#   shadow_guided_restormer_gated, shadow_guided_restormer_large
 ```
 
-### 评估
+### Evaluation
 
 ```bash
-# 评估指定 checkpoint 在 RDD 测试集上的表现
-python evaluate_checkpoint.py --model shadow_guided_restormer_no_sgca --ckpt <path>.pth --dataset rdd
+# Single checkpoint evaluation
+python evaluate_checkpoint.py --model shadow_guided_restormer_no_sgca \
+    --ckpt <path>.pth --dataset rdd
 
-# 跨域泛化评估 (RDD↔SD7K)
-python eval_cross_dataset.py --model shadow_guided_restormer_no_sgca --ckpt <path>.pth
+# Cross-domain generalization
+python eval_cross_dataset.py --model shadow_guided_restormer_no_sgca \
+    --ckpt <path>.pth
 
-# OCR 性能评估
+# OCR performance
 python eval_ocr.py --ckpt <path>.pth --dataset rdd
 ```
 
-### 实验脚本
+### Analysis Scripts
 
 ```bash
-# 数据量缩放曲线 — 在 SD7K 子集 (30/60/100/150) 上训练
-python run_scaling_curve.py --prepare_only           # Step 1: 创建子集
-python run_scaling_curve.py --model concat --size 30 --gpu 0  # Step 2: 训练
+# Data scaling curve — train on SD7K subsets (30/60/100/150 pairs)
+python run_scaling_curve.py --model concat --size 30 --gpu 0
 
-# 注意力可视化 — 提取并对比 decoder 自注意力图
+# Attention visualization — extract and compare decoder self-attention maps
 python visualize_attention.py --data_dir ./dataset/RDD/test/ --num_samples 5
 ```
 
-## 实验结果复现
+---
 
-完整实验数据与训练日志见 `paper/experiment_results.json`。所有训练在 4× RTX 3090 24GB 上进行，单卡 batch_size=1，200 epochs。
+## Reproducibility
 
-### 预训练+微调结果 (SD7K→RDD)
+All experiments were conducted on 4× NVIDIA RTX 3090 (24GB) with the following unified protocol:
+- **Optimizer**: AdamW (β₁=0.9, β₂=0.999), weight decay 10⁻⁴
+- **Learning rate**: 2×10⁻⁴, halved at epochs 100 and 150
+- **Batch size**: 1 per GPU (gradient accumulation ×2)
+- **Epochs**: 200 (100 for scaling curve subsets)
+- **Loss**: L₁ + SSIM + FFT frequency-domain loss
 
-| 模型 | From-scratch | Finetuned | Δ |
-|------|-------------|-----------|----|
-| No SGCA | 37.20 | 35.41 | -1.79 |
-| SGGF (Gated) | 35.53 | 35.86 | +0.33 |
-| Large (dim=64) | 37.05 | 36.39 | -0.66 |
+Complete numerical results and training logs are available in `paper/experiment_results.json`.
 
-部分模型微调后性能下降，说明合成数据预训练可能将模型导向局部最优。
+---
 
-## 引用
+## Citation
 
-如果本工作对您的研究有帮助，请引用我们的论文：
+If you find this work useful, please cite:
 
 ```bibtex
-@article{...
+@article{...,
+  title     = {Understanding Feature Fusion Strategies in Transformer-based
+               Image Restoration: Evidence from Document Shadow Removal},
+  author    = {...},
+  journal   = {Applied Intelligence},
+  year      = {2026},
+  note      = {Under review}
 }
 ```
 
-## 致谢
+---
 
-本项目基于 [Restormer](https://github.com/swz30/Restormer) (CVPR 2022) 和 [ShaDocFormer](https://github.com/kilito777/ShaDocFormer) (IJCNN 2024)。感谢原始作者的优秀工作。
+## Acknowledgments
+
+This project builds upon [Restormer](https://github.com/swz30/Restormer) (CVPR 2022) and [ShaDocFormer](https://github.com/kilito777/ShaDocFormer) (IJCNN 2024). We thank the original authors for their excellent work.
